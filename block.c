@@ -26,37 +26,39 @@ int main(int argc,char **argv)
 ///////////////////////////////////////////////////////////////////
 void run()
 {
-  struct location bar;           //バーの位置情報
-  struct location ball;          //ボールの位置情報
-  struct Record rec,tmp;         //今回のゲームを記録と一時的な保持記録
+  struct Bar bar;                //バーの位置情報
+  struct Ball ball;              //ボールの位置情報
+  struct Record rec;             //今回のゲームを記録と一時的な保持記録
   struct BLOCK *block = NULL;    //ブロック
 
   int ch;                //キーボード入力用
   int i = 0;
-  double x,y;            //ブロック作成の際に使用
-  int delay = 0;         //これによってボールの時間を制御
-  int waitCount = 3000;  //ボールの時間を制御
   int count = 0;         //ブロックがどれだけ破壊されたか
+  int loop = 0;          //これによってボールの時間を制御
   time_t t1,t2,t3;       //時間
-  int shoot = 0;         //弾を発射するかしないか0or1  0は発射しない
   int life = 3;          //文字通りLIFE
   double score;          //スコア
   double level_score=0;  //一時的なスコアを記録
   double tmp_score=0;  
-  int level = 1;         //レベル
-  int bar_width = 7;     //バーの長さの初期設定
- 
-  //色を設定
-  start_color();
-  init_pair(1,COLOR_CYAN,COLOR_BLACK);
-  init_pair(2,COLOR_RED,COLOR_BLACK);
 
-  bar.Y = LINES -5;     //下から5上にラケットの一を設定
-  bar.X = WALL_R/2;     //ラケットを真ん中からスタート
-  ball.X = WALL_R/2;    //ボールの初期位置
-  ball.Y = LINES-5;
-  ball.Dx = 1;          //ボールの方向ベクトルの初期設定
-  ball.Dy = -1;         //斜め右上45度に進む
+  // 記録の設定
+  rec.level = 1;         //レベル
+
+  // バーの設定
+  bar.Y = LINES - 5;     //バーの初期位置
+  bar.X = WALL_R / 2;
+  bar.width = 7;         //バーの長さの初期設定
+  bar.shoot = 0;         //ボールを発射するか(1) or しないか(0)
+  strcpy(bar.addBar, "=======");
+  strcpy(bar.eraseBar, "       ");
+
+  // ボールの設定
+  ball.X = WALL_R / 2;   //ボールの初期位置
+  ball.Y = LINES - 5;
+  ball.Dx = 1;           //ボールの方向ベクトルの初期設定
+  ball.Dy = -1;          //斜め右上45度に進む
+  ball.waitCount = 3000; //bポールの速さ
+
   timeout(0);
 
 
@@ -88,12 +90,7 @@ void run()
   /////////////////////////////////////////////
   START:   
     clear();
-    // ブロック生成
-    for(y = 2*LINES/15; y < 5*LINES/15; y += 5){
-      for(x = ((WALL_R - 8)%9)/2 + 6; x <= WALL_R-6; x += 11){
-        makeBlock(&block,x,y);
-      }
-    }
+    makeBlocks(&block);   // ブロック生成
   /////////////////////////////////////////////
   //                                         //
   //               初期状態                   //
@@ -104,20 +101,19 @@ void run()
       showBlocks(block);
       mvaddch(ball.Y,ball.X,' ');
       //shootが0の時はバーと一緒に移動
-      if(shoot == 0){
+      if(bar.shoot == 0){
         ball.X = bar.X + 1;
         ball.Y = bar.Y - 1;
         //スペースが入力されたら発射(shoot=1)
-        if(ch == ' ') shoot = 1;
-      } else if(shoot == 1) {
+        if(ch == ' ') bar.shoot = 1;
+      } else if(bar.shoot == 1) {
         t1 = time(NULL);
         goto GAME;
       }
       printWall();
-      printScore(0, level, score, life);
-      //LEVEL別に表示するバーを変更。さらに、移動させる
-      Level(&bar, &bar_width, level, ch, &waitCount);
-      mvaddch(ball.Y,ball.X,'@'|COLOR_PAIR(2));
+      printScore(0, rec.level, score, life);
+      moveBar(&bar, &ball, ch);
+      mvaddch(ball.Y, ball.X, '@');
     }
     goto END;
 
@@ -129,42 +125,45 @@ void run()
   GAME:
     while((ch = getch()) != 'q'){
       //ボールの時間を進める。
-      delay++;
+      loop++;
       showBlocks(block);
-      mvaddch(ball.Y,ball.X,' ');
+      mvaddch(ball.Y, ball.X, ' ');
       printWall();
 
+      moveBar(&bar, &ball, ch);
+
       t2 = time(NULL);
-      score = tmp_score + (count * 1000)*(level/2.0) + (100000.0/waitCount)*(int)(t2-t1);
+      score = tmp_score + (count * 1000)*(rec.level/2.0) + (100000.0/ball.waitCount)*(int)(t2-t1);
 
       // scoreが条件を満たしたらレベルアップ
-      if((score - level_score) > 8000*level){
+      if((score - level_score) > 8000*rec.level){
         tmp_score = score;
-        level++;
+        rec.level++;
         count = 0;
         mvprintw(LINES/2,WALL_R/2,"LEVEL UP!!");
         t3 = time(NULL);
-        if(waitCount > 500) waitCount -= 500;
+        if(ball.waitCount > 500) ball.waitCount -= 500;
         level_score = score;
+        Level(&bar, rec.level);
       }
 
       // 3秒経ったら、LEVEL UPを消す。
-      if((int)(t2-t3) == 3) mvprintw(LINES/2,WALL_R/2,"          ");
+      if((int)(t2-t3) == 3) mvprintw(LINES/2, WALL_R/2, "          ");
       // 右側にスコア表示
-      printScore((int)(t2 - t1), level, score, life);
+      printScore((int)(t2 - t1), rec.level, score, life);
 
-      if(delay % waitCount == 0){
+      if(loop % ball.waitCount == 0){
         ball.X += ball.Dx;
         ball.Y += ball.Dy;
 
-        if( CollisionDetection(&ball, &bar, &delay, bar_width) == 1 ){
+        if( CollisionDetection(&ball, &bar) == 1 ){
           //ボールをバーの位置に。向きなども初期値に戻してlifeを減らす。
-          shoot = 0;
+          bar.shoot = 0;
           ball.X = bar.X;        //ボールの位置を初期化
           ball.Y = bar.Y;
           ball.Dx = 1;           //ボールの速度ベクトルも初期化
           ball.Dy = -1;
-          delay = 0;             //時間も初期化
+          loop = 0;             //時間も初期化
           life--;                //ライフを減らす
 
           if(life == 2){
@@ -186,7 +185,6 @@ void run()
             rec.score3 = score - rec.score2 - rec.score1;
             rec.time = rec.time1 + rec.time2 + rec.time3;
             rec.score = score;
-            rec.data = 1;
             /* ゲームオーバーしたら3秒待機して記録を表示 */
             printGameOver(rec);
             goto RESTART;
@@ -202,9 +200,6 @@ void run()
         return;
       }
 
-      //LEVEL別に表示するバーを変更。さらに、移動させる
-      Level(&bar,&bar_width,level,ch,&waitCount);
-
       mvaddch(ball.Y,ball.X,'@'|COLOR_PAIR(2));
     }/* ここでwhile文閉じている */
   goto END;
@@ -217,16 +212,15 @@ void run()
   RESTART:
     /* データの初期化 */
     life = 3;
-    rec.data = 0;
     tmp_score = 0;
     count = 0;
-    waitCount = 3000;
+    ball.waitCount = 3000;
     score = 0;
-    level = 1;
+    rec.level = 1;
     freeBlocks(block);  //前回のブロックをすべて開放してする。
     block = NULL;
-    bar.X = WALL_R/2;
-    bar.Y = LINES-5;
+    bar.X = WALL_R / 2;
+    bar.Y = LINES - 5;
     while(1){
       ch = getch();
       if(ch == 'r') goto START;

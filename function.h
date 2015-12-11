@@ -6,7 +6,7 @@
 #define TOP 0              //上の壁
 #define UNDER (LINES - 5)  //下の壁
 
-//ブロックの構造体
+// ブロックの構造体
 struct BLOCK{
   double X;
   double Y;      //ブロックの座標
@@ -14,17 +14,28 @@ struct BLOCK{
   struct BLOCK *next;  //月のブロックへのポインタ
 };
 
-//ボールやバーの位置の構造体
-struct location{
+// ボールの構造体
+struct Ball{
   double X;
-  double Y;      //座標
+  double Y;      // 座標
   double Dx;
-  double Dy;     //それぞれの速度ベクトル
+  double Dy;     // それぞれの速度ベクトル
+  int waitCount; // 速度
 };
 
-//TOP5位の記録情報
+// バーの構造体
+struct Bar {
+  double X;     // バーの位置
+  double Y;
+  int width;    // バーの長さ
+  int shoot;    // ボールを発射するか(1)しないか(0)
+  char addBar[12];   // バーの描画部分
+  char eraseBar[12]; // バーの消す部分
+};
+
+// レコードの構造体
 struct Record{
-  int data;       //0だったらデータ未入力
+  int level;      //レベル
   double score;   //総スコア
   double score1;  //ボール一個目のスコア
   double score2;  //ボール二個目のスコア
@@ -33,16 +44,16 @@ struct Record{
   int time1;      //ボール一個目の生存タイム
   int time2;      //ボール二個目の生存タイム
   int time3;      //ボール三個目の生存タイム
-  char name[32];  //記録保持者の名前
 };
 
 void freeBlocks(struct BLOCK *block);
 void makeBlock(struct BLOCK **block,double x,double y);
+void makeBlocks(struct BLOCK **block);
 void showBlocks(struct BLOCK *block);
 int breakBlock(struct BLOCK **block,double x,double y,double *Dx,double *Dy,int *count);
-int CollisionDetection(struct location *ball, struct location *bar, int *delay, int bar_width);
-void moveBar(struct location *bar,int ch,int bar_width,int *waitCount);
-void Level(struct location *bar,int *bar_width,int level,int ch,int *waitCount);
+int CollisionDetection(struct Ball *ball, struct Bar *bar);
+void moveBar(struct Bar *bar, struct Ball *ball, int ch);
+void Level(struct Bar *bar, int level);
 void printRecord(struct Record rec);
 void printScore(int time, int level, double score, int life);
 void printGameOver();

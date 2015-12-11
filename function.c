@@ -39,6 +39,17 @@ void makeBlock(struct BLOCK **block,double x,double y)
   new->next = NULL;
 }
 
+void makeBlocks(struct BLOCK **block)
+{
+  double x, y;
+
+  for(y = 2*LINES/15; y < 5*LINES/15; y += 5){
+    for(x = ((WALL_R - 8)%9)/2 + 6; x <= WALL_R-10; x += 11){
+      makeBlock(block, x, y);
+    }
+  }
+}
+
 // ブロックを表示
 void showBlocks(struct BLOCK *block)
 {
@@ -69,12 +80,10 @@ int breakBlock(struct BLOCK **block,double x,double y,double *Dx,double *Dy,int 
       
       //もしブロックの左端にあたったら
       if(ptr->X == x){
-
         //左側から来たボールが左端に当たった場合
         if(*Dx == 1){
           *Dx *= -1;
           break;
-
         //右側から来たボールが左端に当たった場合
         }else{
           *Dy *= -1;
@@ -84,13 +93,11 @@ int breakBlock(struct BLOCK **block,double x,double y,double *Dx,double *Dy,int 
   
       //もしブロックの右端に当たったら
       if(x == ptr->X + 4){
-
         //左側から来たボールが右端に当たった場合
         if(*Dx == 1){
           *Dy *= -1;
           break;
-
-          //右側から来たボールが左端に当たった場合
+        //右側から来たボールが左端に当たった場合
         }else{
           *Dx *= -1;
           break;
@@ -129,7 +136,7 @@ int breakBlock(struct BLOCK **block,double x,double y,double *Dx,double *Dy,int 
 }
 
 // ボールとバーの当たり判定(下に落ちた時だけ1を返す)
-int CollisionDetection(struct location *ball, struct location *bar, int *delay, int bar_width)
+int CollisionDetection(struct Ball *ball, struct Bar *bar)
 {
   //ボールが下に落ちたら1を返す
   if((*ball).Y > LINES-1) return 1;
@@ -153,7 +160,7 @@ int CollisionDetection(struct location *ball, struct location *bar, int *delay, 
   }
 
   //バーにボールが当たった時
-  else if(((*ball).Y == (*bar).Y) && ((*ball).X >= (*bar).X) && ((*ball).X <= (*bar).X + (bar_width-1))){
+  else if(((*ball).Y == (*bar).Y) && ((*ball).X >= (*bar).X) && ((*ball).X <= (*bar).X + ((*bar).width-1))){
     (*ball).Y = (*bar).Y - 1;
     (*ball).Dy = -1;
   }
@@ -161,8 +168,9 @@ int CollisionDetection(struct location *ball, struct location *bar, int *delay, 
 }
 
 //バーを動かす
-void moveBar(struct location *bar,int ch,int bar_width,int *waitCount)
+void moveBar(struct Bar *bar, struct Ball *ball, int ch)
 {
+  mvaddstr((*bar).Y, (*bar).X, (*bar).eraseBar);
   switch(ch){
   case KEY_LEFT:
     if((*bar).X <= WALL_L+3) (*bar).X = WALL_L+3;
@@ -170,55 +178,51 @@ void moveBar(struct location *bar,int ch,int bar_width,int *waitCount)
     break;
 
   case KEY_RIGHT:
-    if((*bar).X >= WALL_R - (bar_width+1)) (*bar).X = WALL_R - (bar_width+1);
+    if((*bar).X >= WALL_R - ((*bar).width+1)) (*bar).X = WALL_R - ((*bar).width+1);
     (*bar).X += 1;
     break;
 
   case KEY_UP:
-    if(*waitCount > 500) *waitCount -= 500;
+    if((*ball).waitCount > 500) (*ball).waitCount -= 500;
     break;
 
   case KEY_DOWN:
-    if(*waitCount < 9000) *waitCount += 500;
+    if((*ball).waitCount < 9000) (*ball).waitCount += 500;
     break;
 
   default:
     break;
   }
+  mvaddstr((*bar).Y, (*bar).X, (*bar).addBar);
 }
 
 //LEVEL別にバーの長さを変更
-void Level(struct location *bar,int *bar_width,int level,int ch,int *waitCount)
+void Level(struct Bar *bar, int level)
 {
   if(level == 1){
-    mvaddstr((*bar).Y,(*bar).X,"        ");
-    moveBar(bar,ch,*bar_width,waitCount);
-    mvaddstr((*bar).Y,(*bar).X,"========");
-    *bar_width = 8;
+    strcpy((*bar).addBar, "========");
+    strcpy((*bar).eraseBar, "        ");
+    (*bar).width = 8;
   }
   else if(level == 2){
-    mvaddstr((*bar).Y,(*bar).X,"        ");
-    moveBar(bar,ch,*bar_width,waitCount);
-    mvaddstr((*bar).Y,(*bar).X,"=======");
-    *bar_width = 7;
+    strcpy((*bar).addBar, "=======");
+    strcpy((*bar).eraseBar, "       ");
+    (*bar).width = 7;
   }
   else if(level== 3){
-    mvaddstr((*bar).Y,(*bar).X,"       ");
-    moveBar(bar,ch,*bar_width,waitCount);
-    mvaddstr((*bar).Y,(*bar).X,"======");
-    *bar_width = 6;
+    strcpy((*bar).addBar, "======");
+    strcpy((*bar).eraseBar, "      ");
+    (*bar).width = 6;
   }
   else if(level== 4){
-    mvaddstr((*bar).Y,(*bar).X,"      ");
-    moveBar(bar,ch,*bar_width,waitCount);
-    mvaddstr((*bar).Y,(*bar).X,"=====");
-    *bar_width = 5;
+    strcpy((*bar).addBar, "=====");
+    strcpy((*bar).eraseBar, "     ");
+    (*bar).width = 5;
   }
   else{
-    mvaddstr((*bar).Y,(*bar).X,"     ");
-    moveBar(bar,ch,*bar_width,waitCount);
-    mvaddstr((*bar).Y,(*bar).X,"====");
-    *bar_width = 4;
+    strcpy((*bar).addBar, "====");
+    strcpy((*bar).eraseBar, "    ");
+    (*bar).width = 4;
   }
 }
 
