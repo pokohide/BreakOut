@@ -1,8 +1,9 @@
-block:block.o function.o
-		gcc block.o function.o -o block -lncurses
+LDLIBS := -lncurses
 
-function.o:function.h function.c
-		gcc -c function.c -lncurses
+block: block.o function.o
 
-block.o:function.h block.c
-		gcc -c block.c -lncurses
+block.o function.o: function.h
+
+clean:
+	$(RM) *.o
+	$(RM) block
